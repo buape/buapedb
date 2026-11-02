@@ -1,0 +1,60 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+
+      - name: Build release archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          test "$(bun -p 'require("./package.json").version')" = "$VERSION"
+          bun run release
+          mkdir -p release
+          for target in darwin-arm64:darwin-arm64 darwin-amd64:darwin-x64 linux-amd64:linux-x64; do
+            arch="${target%%:*}"
+            binary="${target#*:}"
+            mkdir -p "release/buapedb-${VERSION}-${arch}"
+            cp "dist/buapedb-${binary}" "release/buapedb-${VERSION}-${arch}/buapedb"
+            tar -C "release/buapedb-${VERSION}-${arch}" -czf "buapedb-${VERSION}-${arch}.tar.gz" buapedb
+          done
+          sha256sum buapedb-*.tar.gz > checksums.txt
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            buapedb-*.tar.gz
+            checksums.txt
+          generate_release_notes: true
+
+      - name: Trigger Homebrew tap update
+        env:
+          GH_TOKEN: ${{ secrets.BUAPE_TAP_DISPATCH_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          test -n "$GH_TOKEN" || { echo "BUAPE_TAP_DISPATCH_TOKEN is not configured"; exit 1; }
+          gh api repos/buape/homebrew-tap/dispatches \
+            --method POST \
+            -f event_type=buapedb_release \
+            -f 'client_payload[repo]=buape/buapedb' \
+            -f "client_payload[tag]=$TAG"

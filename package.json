@@ -1,0 +1,28 @@
+{
+	"name": "buapedb",
+	"version": "0.1.0",
+	"description": "Short-lived Buape database credentials through Buape Auth",
+	"type": "module",
+	"private": true,
+	"license": "MIT",
+	"packageManager": "bun@1.4.1",
+	"scripts": {
+		"start": "bun run src/index.ts",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"format": "biome check --write .",
+		"build": "bun build src/index.ts --compile --no-compile-autoload-dotenv --no-compile-autoload-bunfig --outfile dist/buapedb",
+		"release:darwin-arm64": "bun run build --target bun-darwin-arm64 --outfile dist/buapedb-darwin-arm64",
+		"release:darwin-x64": "bun run build --target bun-darwin-x64 --outfile dist/buapedb-darwin-x64",
+		"release:linux-x64": "bun run build --target bun-linux-x64-baseline --outfile dist/buapedb-linux-x64",
+		"release": "bun run release:darwin-arm64 && bun run release:darwin-x64 && bun run release:linux-x64"
+	},
+	"dependencies": {
+		"zod": "^4.6.7"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.6.4",
+		"@types/bun": "^1.4.4",
+		"typescript": "^7.0.2"
+	}
+}
